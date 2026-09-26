@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>GTA V Custom Map - Subway & Satellite</title>
+    <!-- โหลดไลบรารี Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-black: #0d0d0d;
+            --bg-black-2: #1a1414;
+            --red: #e50914;
+            --red-dark: #8b0000;
+            --red-glow: rgba(229, 9, 20, 0.45);
+            --white: #ffffff;
+            --white-dim: rgba(255, 255, 255, 0.55);
+            --text-light: #f5f5f5;
+        }
+
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: 'Oswald', 'Segoe UI', sans-serif; }
+        #map { width: 100vw; height: 100vh; background-color: #000000; }
+
+        ::selection { background: var(--red); color: var(--white); }
+
+        /* ===== แถบหัวข้อแบรนด์ POLICE OKI TOWN ===== */
+        #brand-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(90deg, var(--bg-black) 0%, rgba(13,13,13,0.75) 85%, transparent 100%);
+            border: 1px solid var(--red-dark);
+            border-left: 4px solid var(--red);
+            border-radius: 8px;
+            padding: 6px 18px 6px 8px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 10px var(--red-glow);
+            user-select: none;
+            pointer-events: none;
+        }
+        #brand-header img {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 4px var(--red-glow));
+        }
+        #brand-header .brand-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.05;
+        }
+        #brand-header .brand-text .en {
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: var(--white);
+            text-shadow: 0 0 8px var(--red-glow);
+        }
+        #brand-header .brand-text .en span { color: var(--red); }
+        #brand-header .brand-text .th {
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--white-dim);
+        }
+
+        /* ===== ปุ่มสามขีด (เมนูหลัก) — โทนดำ-แดง ===== */
+        #menu-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        #hamburger-btn {
+            background: var(--bg-black);
+            color: var(--white);
+            width: 45px;
+            height: 45px;
+            border-radius: 8px;
+            border: 1px solid var(--red-dark);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 10px var(--red-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            user-select: none;
+            transition: box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        #hamburger-btn:hover { background: #241010; border-color: var(--red); box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 16px var(--red-glow); }
+
+        #dropdown-popup {
+            display: none;
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--bg-black);
+            color: var(--text-light);
+            width: 260px;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--red-dark);
+            border-top: 3px solid var(--red);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 14px var(--red-glow);
+            font-size: 14px;
+        }
+
+        #dropdown-popup.show {
+            display: block;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--white-dim);
+            font-weight: bold;
+            transition: color 0.2s ease;
+        }
+        .close-btn:hover { color: var(--red); }
+
+        .menu-section {
+            margin-bottom: 15px;
+        }
+        .menu-section h3 {
+            font-size: 15px;
+            margin: 0 0 8px 0;
+            color: var(--white);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--red);
+            padding-bottom: 5px;
+        }
+
+        #dropdown-popup button {
+            width: 100%;
+            background: linear-gradient(180deg, var(--red) 0%, var(--red-dark) 100%);
+            color: var(--white);
+            border: 1px solid transparent;
+            padding: 9px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-top: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            transition: filter 0.2s ease, border-color 0.2s ease;
+        }
+        #dropdown-popup button:hover { filter: brightness(1.15); border-color: var(--white-dim); }
+        #dropdown-popup button.logout {
+            background: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 100%);
+            border: 1px solid var(--red-dark);
+        }
+        .info-text {
+            font-size: 12px;
+            color: var(--white-dim);
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+
+        .popup-action-btn {
+            display: inline-block;
+            margin-top: 8px;
+            margin-right: 5px;
+            padding: 5px 10px;
+            color: var(--white);
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: filter 0.2s ease;
+        }
+        .popup-action-btn:hover { filter: brightness(1.2); }
+        .btn-edit-web { background: linear-gradient(180deg, #3a3a3a 0%, #1a1a1a 100%); border: 1px solid var(--red-dark); }
+        .btn-del-web { background: linear-gradient(180deg, var(--red) 0%, var(--red-dark) 100%); }
+
+        /* ===== ปุ่มสลับโหมดแผนที่ — ขยายใหญ่ขึ้น + โทนดำ-แดง ===== */
+        #map-toggle-switch {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            width: 108px;
+            height: 50px;
+            background: var(--bg-black);
+            border: 1px solid var(--red-dark);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            box-sizing: border-box;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 12px var(--red-glow);
+            user-select: none;
+            transition: box-shadow 0.3s ease, background 0.3s ease;
+        }
+        #map-toggle-switch:hover {
+            box-shadow: 0 4px 14px rgba(0,0,0,0.6), 0 0 20px var(--red-glow);
+        }
+        #map-toggle-switch .toggle-icon {
+            font-size: 21px;
+            line-height: 1;
+            z-index: 2;
+            opacity: 0.5;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        #map-toggle-switch .toggle-circle {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(180deg, var(--red) 0%, var(--red-dark) 100%);
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease, background 0.3s ease;
+            z-index: 1;
+        }
+        #map-toggle-switch.subway-mode {
+            background: #1a0d0d;
+        }
+        #map-toggle-switch.subway-mode .toggle-circle {
+            transform: translateX(58px);
+            background: linear-gradient(180deg, #ff4b4b 0%, var(--red) 100%);
+        }
+        #map-toggle-switch.subway-mode .toggle-icon-sub {
+            opacity: 1;
+            transform: scale(1.15);
+        }
+        #map-toggle-switch:not(.subway-mode) .toggle-icon-sat {
+            opacity: 1;
+            transform: scale(1.15);
+        }
+        #map-toggle-label {
+            position: absolute;
+            bottom: 78px;
+            left: 20px;
+            z-index: 1000;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            color: var(--white);
+            background: rgba(13, 13, 13, 0.85);
+            border: 1px solid var(--red-dark);
+            border-left: 3px solid var(--red);
+            padding: 4px 10px;
+            border-radius: 6px;
+            pointer-events: none;
+            text-align: left;
+        }
+
+        /* ===== ไอคอนหมุดแบบมีตัวเลขรันตามลำดับการสร้าง — โทนแดง-ดำ-ขาว ===== */
+        .numbered-marker {
+            background: transparent;
+            border: none;
+        }
+        .numbered-marker-inner {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(180deg, var(--red) 0%, var(--red-dark) 100%);
+            color: var(--white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.55), 0 0 6px var(--red-glow);
+            border: 2px solid var(--white);
+            box-sizing: border-box;
+        }
+
+        /* ===== ปรับป๊อปอัปของ Leaflet ให้เข้าธีมดำ-แดง-ขาว ===== */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-black);
+            color: var(--text-light);
+            border: 1px solid var(--red-dark);
+            border-top: 2px solid var(--red);
+            border-radius: 8px;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.7), 0 0 10px var(--red-glow);
+        }
+        .leaflet-popup-content { margin: 12px 14px; font-size: 13px; }
+        .leaflet-popup-content b { color: var(--red); }
+        .leaflet-popup-tip { background: var(--bg-black); border: 1px solid var(--red-dark); }
+        .leaflet-container a.leaflet-popup-close-button { color: var(--white-dim); }
+        .leaflet-container a.leaflet-popup-close-button:hover { color: var(--red); }
+        .leaflet-bar a {
+            background-color: var(--bg-black);
+            color: var(--white);
+            border-bottom: 1px solid var(--red-dark) !important;
+        }
+        .leaflet-bar a:hover { background-color: #241010; color: var(--red); }
+    </style>
+</head>
+<body>
+
+    <!-- แถบแบรนด์ POLICE OKI TOWN -->
+    <div id="brand-header">
+        <img src="Police.png" alt="Police Oki Town">
+        <div class="brand-text">
+            <div class="en">POLICE <span>OKI TOWN</span></div>
+            <div class="th">沖縄タウン警察</div>
+        </div>
+    </div>
+
+    <!-- สวิตช์สลับโหมดแผนที่ (แยกออกจากเมนูสามขีด) -->
+    <div id="map-toggle-switch" onclick="toggleMapMode()" title="สลับโหมดแผนที่">
+        <span class="toggle-icon toggle-icon-sat">🛰️</span>
+        <span class="toggle-icon toggle-icon-sub">🚇</span>
+        <div class="toggle-circle"></div>
+    </div>
+    <div id="map-toggle-label">แผนที่ทั่วไป</div>
+
+    <div id="menu-container">
+        <!-- ปุ่มสามขีด -->
+        <div id="hamburger-btn" onclick="openMenu()">☰</div>
+
+        <!-- ป๊อปอัปเมนู -->
+        <div id="dropdown-popup">
+            <span class="close-btn" onclick="closeMenu()">✕</span>
+
+            <!-- ส่วนเข้าสู่ระบบ -->
+            <div class="menu-section" style="margin-top: 10px;">
+                <h3>เข้าสู่ระบบ</h3>
+                <div id="status-text" style="margin-bottom: 8px; font-size: 13px;">
+                    สถานะ: <b>ผู้ชมทั่วไป (Viewer)</b>
+                </div>
+                <button id="auth-btn" onclick="toggleLogin()">ลงชื่อเข้าใช้ (Admin)</button>
+                <div class="info-text" id="admin-tip" style="display:none; color: #28a745; margin-top: 8px;">
+                    - คลิกพื้นที่ว่างเพื่อเพิ่มจุดใหม่<br>- <b>คลิกที่หมุด</b> เพื่อเปิดดูและแก้ไข/ลบ<br>- จุดที่เพิ่มจะถูกผูกกับโหมดแผนที่ที่กำลังเปิดอยู่<br>- ทุกคนที่เปิดหน้านี้จะเห็นมุดชุดเดียวกันแบบเรียลไทม์
+                </div>
+                <button id="import-local-btn" onclick="importLocalMarkers()" style="display:none; background-color:#6c757d;">นำเข้ามุดเก่าจากเครื่องนี้</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- โหลดไลบรารี Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <!-- โหลด Firebase (compat SDK) สำหรับฐานข้อมูลกลาง ให้ทุกคนเห็นมุดชุดเดียวกัน -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script>
+        // ===== ตั้งค่า Firebase (โปรเจกต์ sportmap) =====
+        const firebaseConfig = {
+            apiKey: "AIzaSyCCqWnQXn67c5aZESQg6T1mbNlWQbcf83E",
+            authDomain: "sportmap-3df90.firebaseapp.com",
+            databaseURL: "https://sportmap-3df90-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sportmap-3df90",
+            storageBucket: "sportmap-3df90.firebasestorage.app",
+            messagingSenderId: "754437234172",
+            appId: "1:754437234172:web:e06ca1b185bd5eaec56679",
+            measurementId: "G-98TNTKDKB4"
+        };
+        firebase.initializeApp(firebaseConfig);
+        var markersRef = firebase.database().ref('markers');
+        // แคชข้อมูลมุดล่าสุดที่ได้จาก Firebase (อัปเดตอัตโนมัติแบบเรียลไทม์)
+        var allMarkersCache = [];
+    </script>
+
+    <script>
+        var bounds = [[0, 0], [8192, 8192]];
+
+        var map = L.map('map', {
+            crs: L.CRS.Simple,
+            minZoom: -3,
+            maxZoom: 4,
+            attributionControl: false,
+            doubleClickZoom: false,
+            zoomControl: false
+        });
+
+        var satMapUrl = 'https://www.bragitoff.com/wp-content/uploads/2015/11/GTAV_ATLUS_8192x8192.png';
+        var subwayMapUrl = 'subway-map.png';
+
+        var currentOverlay = L.imageOverlay(satMapUrl, bounds).addTo(map);
+        var isSubwayMode = false;
+
+        // เลเยอร์แยกสำหรับหมุด ทำให้ล้าง/วาดใหม่ได้ง่ายตอนสลับโหมด
+        var markersLayer = L.layerGroup().addTo(map);
+
+        map.setView([4096, 4096], -2);
+        map.setMaxBounds(bounds);
+        map.options.maxBoundsViscosity = 1.0;
+
+        function checkAdmin() {
+            return localStorage.getItem('gta_admin') === 'true';
+        }
+
+        if (checkAdmin()) {
+            document.getElementById("status-text").innerHTML = "สถานะ: <b style='color:green;'>แอดมิน (Admin)</b>";
+            let btn = document.getElementById("auth-btn");
+            btn.innerText = "ออกจากระบบ";
+            btn.className = "logout";
+            document.getElementById("admin-tip").style.display = "block";
+            document.getElementById("import-local-btn").style.display = "block";
+        }
+
+        // ฟังข้อมูลมุดจาก Firebase แบบเรียลไทม์ — พอมีใครเพิ่ม/แก้/ลบจากที่ไหนก็ตาม
+        // ทุกเบราว์เซอร์ที่เปิดหน้านี้อยู่จะอัปเดตให้อัตโนมัติทันที
+        markersRef.on('value', function(snapshot) {
+            allMarkersCache = [];
+            snapshot.forEach(function(child) {
+                var val = child.val() || {};
+                allMarkersCache.push({
+                    id: child.key,
+                    name: val.name,
+                    lat: val.lat,
+                    lng: val.lng,
+                    mapType: val.mapType || 'satellite'
+                });
+            });
+            renderMarkers();
+        });
+
+        function openMenu() {
+            document.getElementById("hamburger-btn").style.display = "none";
+            document.getElementById("dropdown-popup").classList.add("show");
+        }
+
+        function closeMenu() {
+            document.getElementById("dropdown-popup").classList.remove("show");
+            document.getElementById("hamburger-btn").style.display = "flex";
+        }
+
+        function toggleLogin() {
+            if (!checkAdmin()) {
+                let password = prompt("กรุณากรอกรหัสผ่านแอดมิน :");
+                if (password === "09/09/26") {
+                    localStorage.setItem('gta_admin', 'true');
+                    alert("เข้าสู่ระบบสำเร็จ!");
+                    location.reload();
+                } else if (password !== null) {
+                    alert("รหัสผ่านไม่ถูกต้อง!");
+                }
+            } else {
+                localStorage.removeItem('gta_admin');
+                alert("ออกจากระบบแล้ว");
+                location.reload();
+            }
+        }
+
+        function toggleMapMode() {
+            map.removeLayer(currentOverlay);
+            isSubwayMode = !isSubwayMode;
+
+            var switchEl = document.getElementById("map-toggle-switch");
+            var labelEl = document.getElementById("map-toggle-label");
+
+            if (isSubwayMode) {
+                currentOverlay = L.imageOverlay(subwayMapUrl, bounds).addTo(map);
+                switchEl.classList.add("subway-mode");
+                labelEl.innerText = "แผนที่รถไฟใต้ดิน";
+            } else {
+                currentOverlay = L.imageOverlay(satMapUrl, bounds).addTo(map);
+                switchEl.classList.remove("subway-mode");
+                labelEl.innerText = "แผนที่ทั่วไป";
+            }
+
+            // วาดเฉพาะหมุดของโหมดปัจจุบันใหม่ (ข้อ 3: หมุดของอีกโหมดต้องไม่ขึ้นมาปน)
+            renderMarkers();
+        }
+
+        function currentMapType() {
+            return isSubwayMode ? 'subway' : 'satellite';
+        }
+
+        map.on('click', function(e) {
+            if (!checkAdmin()) return;
+
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+
+            // ป้องกันการสร้างหมุดนอกขอบเขตแผนที่จริง (โซนขอบสีฟ้ารอบภาพ)
+            if (lat < bounds[0][0] || lat > bounds[1][0] || lng < bounds[0][1] || lng > bounds[1][1]) {
+                return;
+            }
+
+            let placeName = prompt("กรอกชื่อสถานที่ใหม่:");
+            if (placeName) {
+                // บันทึกลง Firebase Realtime Database — ทุกคนที่เปิดหน้านี้จะเห็นมุดใหม่ทันที
+                markersRef.push({
+                    name: placeName,
+                    lat: lat,
+                    lng: lng,
+                    mapType: currentMapType()
+                });
+            }
+        });
+
+        function createMarkerOnMap(item, number) {
+            var numberIcon = L.divIcon({
+                className: 'numbered-marker',
+                html: '<div class="numbered-marker-inner">' + number + '</div>',
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+                popupAnchor: [0, -14]
+            });
+            var marker = L.marker([item.lat, item.lng], { icon: numberIcon });
+
+            // ใช้ระบบดักจับอีเวนต์คลิกเพื่อสร้างเนื้อหา Popup สดๆ ตอนคลิก (แก้ปัญหาค่าแอดมินไม่อัปเดต)
+            marker.on('click', function() {
+                var htmlContent = "<b>" + item.name + "</b><br>พิกัด: " + item.lat.toFixed(0) + ", " + item.lng.toFixed(0);
+
+                if (checkAdmin()) {
+                    htmlContent += "<br>" +
+                        "<button class='popup-action-btn btn-edit-web' onclick=\"editMarker('" + item.id + "')\">แก้ไขชื่อ</button>" +
+                        "<button class='popup-action-btn btn-del-web' onclick=\"deleteMarker('" + item.id + "')\">ลบจุด</button>";
+                }
+
+                marker.bindPopup(htmlContent).openPopup();
+            });
+
+            marker.addTo(markersLayer);
+        }
+
+        // แก้ไขชื่อหมุด — อัปเดตตรงไปที่ Firebase, ทุกคนจะเห็นชื่อใหม่ทันที
+        window.editMarker = function(id) {
+            if (!checkAdmin()) return;
+            let marker = allMarkersCache.find(function(m) { return m.id === id; });
+            if (!marker) return;
+
+            let newName = prompt("กรอกชื่อใหม่:", marker.name);
+            if (newName) {
+                markersRef.child(id).update({ name: newName });
+            }
+        };
+
+        // ลบหมุด — ลบตรงจาก Firebase, ทุกคนจะเห็นว่าหมุดหายไปทันที
+        window.deleteMarker = function(id) {
+            if (!checkAdmin()) return;
+            let marker = allMarkersCache.find(function(m) { return m.id === id; });
+            if (!marker) return;
+
+            if (confirm("คุณต้องการลบจุด '" + marker.name + "' ใช่หรือไม่?")) {
+                markersRef.child(id).remove();
+            }
+        };
+
+        // วาดหมุดใหม่ทั้งหมดจากแคช โดยกรองเฉพาะหมุดที่ตรงกับโหมดแผนที่ปัจจุบันเท่านั้น
+        // พร้อมใส่เลขลำดับ (1, 2, 3, ...) ตามลำดับที่มีอยู่ในโหมดนั้นๆ
+        function renderMarkers() {
+            markersLayer.clearLayers();
+            let type = currentMapType();
+
+            let filtered = allMarkersCache.filter(function(item) {
+                return item.mapType === type;
+            });
+
+            filtered.forEach(function(item, idx) {
+                createMarkerOnMap(item, idx + 1);
+            });
+        }
+
+        // นำเข้ามุดเก่าที่เคยบันทึกไว้แบบ localStorage ในเครื่องนี้ (ก่อนเปลี่ยนมาใช้ Firebase)
+        // เข้า Firebase กลาง ให้ทุกคนเห็นร่วมกัน — กดได้ครั้งเดียวพอ ไม่งั้นจะซ้ำ
+        window.importLocalMarkers = function() {
+            if (!checkAdmin()) return;
+            let local = JSON.parse(localStorage.getItem('gta_markers')) || [];
+            if (local.length === 0) {
+                alert("ไม่พบมุดเก่าที่บันทึกไว้ในเครื่องนี้");
+                return;
+            }
+            if (!confirm("พบมุดเก่า " + local.length + " จุดในเครื่องนี้ ต้องการนำเข้าไปยังฐานข้อมูลกลางหรือไม่? (กดได้ครั้งเดียว ไม่งั้นจะซ้ำ)")) {
+                return;
+            }
+            local.forEach(function(m) {
+                markersRef.push({
+                    name: m.name,
+                    lat: m.lat,
+                    lng: m.lng,
+                    mapType: m.mapType || 'satellite'
+                });
+            });
+            localStorage.removeItem('gta_markers');
+            alert("นำเข้าเรียบร้อยแล้ว!");
+        };
+    </script>
+</body>
+</html>
